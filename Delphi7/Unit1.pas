@@ -34,6 +34,16 @@ type
     Sw3: TSpeedButton;
     ControlTimer: TTimer;
     StaticText1: TStaticText;
+    HeaderPanel: TPanel;
+    TitleLabel: TLabel;
+    DeviceLabel: TLabel;
+    ChannelsGroup: TGroupBox;
+    Channel1Label: TLabel;
+    Channel2Label: TLabel;
+    Channel3Label: TLabel;
+    StatusGroup: TGroupBox;
+    StatusHintLabel: TLabel;
+    SendHintLabel: TLabel;
     procedure SpeedButtonClick(Sender: TObject);
     procedure btnSendClick(Sender: TObject);
     procedure TimerReconnectTimer(Sender: TObject);
@@ -211,9 +221,12 @@ Lab1.Caption := IntToStr(d1);
 Lab2.Caption := IntToStr(d2);
 Lab3.Caption := IntToStr(d3);
 
-if s1 then Sw1.Caption := 'ON' else Sw1.Caption := 'OFF';
-if s2 then Sw2.Caption := 'ON' else Sw2.Caption := 'OFF';
-if s3 then Sw3.Caption := 'ON' else Sw3.Caption := 'OFF';
+if s1 then begin Sw1.Caption := 'ON'; Sw1.Font.Color := clGreen; end
+      else begin Sw1.Caption := 'OFF'; Sw1.Font.Color := clGrayText; end;
+if s2 then begin Sw2.Caption := 'ON'; Sw2.Font.Color := clGreen; end
+      else begin Sw2.Caption := 'OFF'; Sw2.Font.Color := clGrayText; end;
+if s3 then begin Sw3.Caption := 'ON'; Sw3.Font.Color := clGreen; end
+      else begin Sw3.Caption := 'OFF'; Sw3.Font.Color := clGrayText; end;
 
   if resend then  begin SendGuiStateToSTM32; resend:= false; end;
 
