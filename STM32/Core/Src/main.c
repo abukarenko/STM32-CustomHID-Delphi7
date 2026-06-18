@@ -131,6 +131,8 @@ while (1)
   /* USER CODE BEGIN 3 */
 
 	static uint32_t heartbeat_tmr = 0;
+	static uint32_t last_pc_rx_tick = 0;
+	static uint8_t pc_connected = 1;
 
 	if (HAL_GetTick() - heartbeat_tmr > 200)
 	{
@@ -156,20 +158,61 @@ while (1)
 
 	    USBD_CUSTOM_HID_SendReport(&hUsbDeviceFS, report, 8);
 	}
+
+  if (pc_connected && ((HAL_GetTick() - last_pc_rx_tick) > 3000))
+  {
+      pc_connected = 0;
+      GUI_Status("Disconnect");
+  }
   uint16_t tx, ty;
   static uint8_t touch_pressed = 0;
 
-  if (XPT2046_GetScreenPoint(&tx, &ty))
+  if (GUI_IsCalibrationMode())
   {
-      if (!touch_pressed)
+      TS_Point raw = XPT2046_GetPoint();
+
+      if (raw.z > 100)
       {
-          GUI_Touch(tx, ty);
-          touch_pressed = 1;
+          if (!touch_pressed)
+          {
+              GUI_CalibrationTouch(raw.x, raw.y);
+              touch_pressed = 1;
+          }
+      }
+      else
+      {
+          touch_pressed = 0;
+      }
+  }
+  else if (GUI_IsTouchTestMode())
+  {
+      if (XPT2046_GetScreenPoint(&tx, &ty))
+      {
+          if (!touch_pressed)
+          {
+              GUI_TouchTestTouch(tx, ty);
+              touch_pressed = 1;
+          }
+      }
+      else
+      {
+          touch_pressed = 0;
       }
   }
   else
   {
-      touch_pressed = 0;
+      if (XPT2046_GetScreenPoint(&tx, &ty))
+      {
+          if (!touch_pressed)
+          {
+              GUI_Touch(tx, ty);
+              touch_pressed = 1;
+          }
+      }
+      else
+      {
+          touch_pressed = 0;
+      }
   }
 
   if (GuiStateChanged)
@@ -191,8 +234,21 @@ while (1)
           HidRxBuffer[5] +
           HidRxBuffer[6];
 
-      if (HidRxBuffer[0] == 0x02 && HidRxBuffer[7] == sum)
+      if (HidRxBuffer[7] != sum)
       {
+          GUI_Status("RX BAD PACKET");
+      }
+      else if (HidRxBuffer[0] == 0x02)
+      {
+          GUI_STATE old_state = GuiState;
+
+          last_pc_rx_tick = HAL_GetTick();
+          if (!pc_connected)
+          {
+              pc_connected = 1;
+              GUI_Status("Ready");
+          }
+
           GuiState.value1 = HidRxBuffer[1];
           GuiState.value2 = HidRxBuffer[2];
           GuiState.value3 = HidRxBuffer[3];
@@ -201,13 +257,42 @@ while (1)
           GuiState.sw2 = HidRxBuffer[5] ? 1 : 0;
           GuiState.sw3 = HidRxBuffer[6] ? 1 : 0;
 
-          GUI_RefreshFromState();
+          GUI_RefreshChangedFromState(&old_state);
 
           SendGuiStateToPC();
       }
+      else if (HidRxBuffer[0] == 0x10)
+      {
+          last_pc_rx_tick = HAL_GetTick();
+          if (!pc_connected)
+          {
+              pc_connected = 1;
+              GUI_Status("Ready");
+          }
+          GUI_StartCalibration();
+      }
+      else if (HidRxBuffer[0] == 0x11)
+      {
+          last_pc_rx_tick = HAL_GetTick();
+          if (!pc_connected)
+          {
+              pc_connected = 1;
+              GUI_Status("Ready");
+          }
+          GUI_StopCalibration();
+      }
+      else if (HidRxBuffer[0] == 0x12)
+      {
+          last_pc_rx_tick = HAL_GetTick();
+          if (!pc_connected)
+          {
+              pc_connected = 1;
+              GUI_Status("Ready");
+          }
+      }
       else
       {
-          GUI_Status("RX BAD PACKET");
+          GUI_Status("RX UNKNOWN CMD");
       }
   }
 

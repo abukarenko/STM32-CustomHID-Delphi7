@@ -7,10 +7,36 @@ extern SPI_HandleTypeDef hspi1;
 #define TOUCH_CS_PIN  GPIO_PIN_12
 
 
-#define RAW_X_MIN  220
-#define RAW_X_MAX  3516
-#define RAW_Y_MIN  205
-#define RAW_Y_MAX  3794
+static uint16_t raw_x_min = 220;
+static uint16_t raw_x_max = 3516;
+static uint16_t raw_y_min = 205;
+static uint16_t raw_y_max = 3794;
+
+#define TOUCH_X_CORR_LEFT    8
+#define TOUCH_X_CORR_RIGHT  -3
+
+static int32_t XPT2046_ApplyXCorrection(int32_t x)
+{
+    int32_t corr;
+
+    corr = TOUCH_X_CORR_LEFT -
+           ((TOUCH_X_CORR_LEFT - TOUCH_X_CORR_RIGHT) * x) / 479;
+
+    return x + corr;
+}
+
+void XPT2046_SetCalibration(uint16_t new_raw_x_min, uint16_t new_raw_x_max,
+                            uint16_t new_raw_y_min, uint16_t new_raw_y_max)
+{
+    if ((new_raw_x_max > new_raw_x_min + 100) &&
+        (new_raw_y_max > new_raw_y_min + 100))
+    {
+        raw_x_min = new_raw_x_min;
+        raw_x_max = new_raw_x_max;
+        raw_y_min = new_raw_y_min;
+        raw_y_max = new_raw_y_max;
+    }
+}
 
 uint8_t XPT2046_GetScreenPoint(uint16_t *sx, uint16_t *sy)
 {
@@ -19,8 +45,10 @@ uint8_t XPT2046_GetScreenPoint(uint16_t *sx, uint16_t *sy)
     if (p.z <= 100)
         return 0;
 
-    int32_t x = (int32_t)(RAW_Y_MAX - p.y) * 480 / (RAW_Y_MAX - RAW_Y_MIN);
-    int32_t y = (int32_t)(RAW_X_MAX - p.x) * 320 / (RAW_X_MAX - RAW_X_MIN);
+    int32_t x = (int32_t)(raw_y_max - p.y) * 480 / (raw_y_max - raw_y_min);
+    int32_t y = (int32_t)(raw_x_max - p.x) * 320 / (raw_x_max - raw_x_min);
+
+    x = XPT2046_ApplyXCorrection(x);
 
     if (x < 0) x = 0;
     if (x > 479) x = 479;

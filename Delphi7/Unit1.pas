@@ -37,6 +37,7 @@ type
     HeaderPanel: TPanel;
     TitleLabel: TLabel;
     DeviceLabel: TLabel;
+    CalButton: TButton;
     ChannelsGroup: TGroupBox;
     Channel1Label: TLabel;
     Channel2Label: TLabel;
@@ -49,6 +50,7 @@ type
     procedure TimerReconnectTimer(Sender: TObject);
     procedure TimerReadTimer(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure CalButtonClick(Sender: TObject);
     procedure ControlTimerTimer(Sender: TObject);
     procedure ProcessRxPacket(const Buf: array of Byte);
   private
@@ -57,6 +59,7 @@ type
     procedure StartReader;
     procedure StopReader;
     procedure SendGuiStateToSTM32;
+    procedure SendCommandToSTM32(Cmd: Byte);
   public
     { Public declarations }
   end;
@@ -71,6 +74,8 @@ var
   d2 :integer = 22;
   d3 :integer = 33;
   resend: boolean = false;
+  calibrationMode: boolean = false;
+  pingCounter: integer = 0;
 
   FRxPacket: array[0..7] of Byte;
 
@@ -159,6 +164,23 @@ begin
 end;
 
 //---------------------------------------------
+procedure TForm1.SendCommandToSTM32(Cmd: Byte);
+var
+  Buf: array[0..8] of Byte;
+begin
+  FillChar(Buf, SizeOf(Buf), 0);
+
+  Buf[0] := 0;
+  Buf[1] := Cmd;
+  Buf[8] := Buf[1] + Buf[2] + Buf[3] + Buf[4] + Buf[5] + Buf[6] + Buf[7];
+
+  if HidWrite(Buf, SizeOf(Buf)) then
+    StaticText1.Caption := 'Command sent: ' + IntToHex(Cmd, 2)
+  else
+    StaticText1.Caption := 'Write FAIL: ' + HidLastError;
+end;
+
+//---------------------------------------------
 procedure TForm1.btnSendClick(Sender: TObject);
 begin
 SendGuiStateToSTM32;
@@ -192,6 +214,23 @@ begin
 
 FReader := nil;
 
+end;
+
+//---------------------------------------------
+procedure TForm1.CalButtonClick(Sender: TObject);
+begin
+  calibrationMode := not calibrationMode;
+
+  if calibrationMode then
+  begin
+    CalButton.Caption := 'Stop Cal';
+    SendCommandToSTM32($10);
+  end
+  else
+  begin
+    CalButton.Caption := 'Cal';
+    SendCommandToSTM32($11);
+  end;
 end;
 
 
@@ -229,6 +268,14 @@ if s3 then begin Sw3.Caption := 'ON'; Sw3.Font.Color := clGreen; end
       else begin Sw3.Caption := 'OFF'; Sw3.Font.Color := clGrayText; end;
 
   if resend then  begin SendGuiStateToSTM32; resend:= false; end;
+
+  Inc(pingCounter);
+  if pingCounter >= 10 then
+  begin
+    pingCounter := 0;
+    if HidIsOpen then
+      SendCommandToSTM32($12);
+  end;
 
 end;
 //---------------------------------------------

@@ -52,6 +52,15 @@ object Form1: TForm1
       Font.Style = []
       ParentFont = False
     end
+    object CalButton: TButton
+      Left = 368
+      Top = 16
+      Width = 68
+      Height = 25
+      Caption = 'Cal'
+      TabOrder = 0
+      OnClick = CalButtonClick
+    end
   end
   object ChannelsGroup: TGroupBox
     Left = 16
